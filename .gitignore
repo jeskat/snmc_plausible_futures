@@ -52,3 +52,6 @@ rsconnect/
 Data/FIA/
 Data/SRTM_clippedCA.tif
 Data/Sierra_Nevada_Conservancy_subregions/
+
+# ipynb_checkpoints
+*/.ipynb_checkpoints/
