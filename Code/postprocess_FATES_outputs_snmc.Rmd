@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Introduction
 
-This scripts uses a set of scripts adapted by Xiulin Gao who adapted them from the original scripts by Marcos Longo at https://github.com/mpaiao/FATES_Utils, along with postprocessing script. 
+This script adapts a set of scripts originated by Xiulin Gao and Marcos Longo  (original: https://github.com/mpaiao/FATES_Utils). 
 
 
 ```{r, label="path"}
