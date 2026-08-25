@@ -18,4 +18,4 @@ export OMP_PROC_BIND=spread
 
 #run the application:
 module load python
-srun -n 1 -c 256 --cpu_bind=none python parse_WRF_FIA.py
+srun -n 1 -c 256 --cpu_bind=none python parse_WRF_for_FIA_plots.py

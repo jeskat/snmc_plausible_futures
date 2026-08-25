@@ -1,0 +1,780 @@
+---
+title: "FATES_SNMC_postprocessing"
+author: "Jessica Katz"
+date: "2026-04-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This scripts uses a set of scripts adapted by Xiulin Gao who adapted them from the original scripts by Marcos Longo at https://github.com/mpaiao/FATES_Utils, along with postprocessing script. 
+
+
+```{r, label="path"}
+
+main_path   = here::here('Data/four-sites-cedar2-2001_2020-260724')
+ens_cases = c('Drought/cz2-nofire-N1T36-cedar2_2001-2020_CLM_FATES.clm2.nc'
+              )
+
+case_files  = file.path(main_path,ens_cases)
+
+# Site names
+st_names = c('Site 1', 'Site 2', 'Site 3', 'Site 4') 
+names(st_names) = c("1","2","3")
+
+
+
+```
+
+```{r load_RUtils}
+## Load everything from RUtils
+util_path   = file.path('/global/home/users/jessicakatz/Repos/RUtils') 
+
+source(file.path(util_path,"load.everything.r"),chdir=TRUE)
+
+```
+
+```{r load_data}
+library(ggpubr)
+library(ncdf4)
+library(ggpattern)
+library(readxl)
+
+
+# Load data files
+hlm1d <- fread(here::here('Data/four-sites-cedar2-2001_2020-260724/Nofire/Nofire-4sites_hlm1d.csv'))
+
+### Pre-industrial
+# This file is already filtered so that the smallest tree size is 10cm
+bypft_pre <- fread(here::here('Data/four-sites-cedar2-2001_2020-260724/PreIndust/Nofire-4sites_bypft-dbh10.csv'))
+
+## This one has all sizes
+bydbh_pre <- fread(here::here('Data/four-sites-cedar2-2001_2020-260724/PreIndust//Nofire-4sites_bydbh.csv'))
+
+
+### Fire off 
+bypft_nofire <- fread(here::here('Data/four-sites-cedar2-2001_2020-260724/Nofire/Nofire-4sites_bypft-dbh10.csv'))
+
+bydbh_noFire <- fread(here::here('Data/four-sites-cedar2-2001_2020-260724/Nofire/Nofire-4sites_bydbh.csv'))
+
+### Drought
+bypft_drought <- fread(here::here('Data/four-sites-cedar2-2001_2020-260724/Drought/drought-4sites_bypft-dbh10.csv'))
+
+
+```
+
+
+```{r define_pfts}
+
+# List of PFTs, in case user_pftinfo is TRUE
+n            = 0
+pftinfo      = list()
+n            = n + 1
+pftinfo[[n]] = list( id     = 1
+                   , key    = "pft1"
+                   , short  = "Pine"
+                   , desc   = "Pine tree"
+                   , colour = "#74A089"
+                   , parse  ="P*i*n*e[E*v*g*r*n]"
+                   )
+n            = n + 1
+pftinfo[[n]] = list( id     = 2
+                   , key    = "pft2"
+                   , short  = "Cedar"
+                   , desc   = "Incense cedar"
+                   , colour = "#9A8822"
+                   , parse  ="C*e*d*a*r[E*v*g*r*n]"
+                   )       
+n            = n + 1
+pftinfo[[n]] = list( id     = 3
+                   , key    = "pft3"
+                   , short  = "Fir"
+                   , desc   = "White fir"
+                   , colour = "#F8AFA8"
+                   , parse  ="F*i*r[E*v*g*r*n]"
+                   ) 
+n            = n + 1
+pftinfo[[n]] = list( id     = 4
+                   , key    = "pft4"
+                   , short  = "Oak"
+                   , desc   = "Black oak"
+                   , colour = "#FDDDA0"
+                   , parse  ="F*i*r[E*v*g*r*n]"
+                   ) #end of PFT list
+
+# Convert user-defined pftinfo to a "tibble" object
+pftinfo  = do.call(what=rbind,args=lapply(X=pftinfo,FUN=as_tibble,stringsAsFactors=FALSE))
+
+npfts = nrow(pftinfo) # Set number of PFTs (active PFTs only) 
+
+```
+
+```{r load_benchmarks}
+
+benchmarks <- read.csv(here::here('Data/SNMC_benchmarks.csv'))
+
+site_order <- unique(benchmarks$Locale)
+benchmarks$label <- paste0(benchmarks$Locale,' (', benchmarks$Source, ')')
+benchmarks$Locale <- factor(benchmarks$Locale, levels = site_order)
+benchmarks <- sort_by(benchmarks, benchmarks$Locale)
+benchmarks$label <- factor(benchmarks$label, levels = unique(benchmarks$label))
+
+## Benchmark size distribution
+ref_size <- read_excel(here::here('Data/SNMC_preindustrial_size_distributions.xlsx'), sheet = "Compiled")
+
+```
+
+
+
+```{r define_size_classes}
+
+nc_conn      = nc_open(case_files[1])
+
+## Makes lists of variables and dimensions in output file
+nc_dlist <- list()
+nc_vlist <- list()
+nc_nvars = nc_conn$nvars
+nc_ndims = nc_conn$ndims
+nc_dlist = rep(NA_character_,times=nc_ndims)
+nc_vlist = rep(NA_character_,times=nc_nvars)
+for (d in sequence(nc_ndims)) nc_dlist[d] = nc_conn$dim[[d]]$name
+for (v in sequence(nc_nvars)) nc_vlist[v] = nc_conn$var[[v]]$name
+
+## Make a table of size class metadata
+idxdbh   = match("fates_levscls",nc_dlist)
+if (is.finite(idxdbh)){
+   dbhs     = nc_conn$dim[[idxdbh]]$vals
+   ndbhs    = nc_conn$dim[[idxdbh]]$len
+   dbhinfo  = tibble( id      = sequence(ndbhs)
+                    , dbh_lwr = dbhs
+                    , dbh_upr = c(dbh_lwr[-1],dbh_lwr[ndbhs]+2*max(diff(dbh_lwr)))
+                    , dbh     = 0.5 * (dbh_lwr + dbh_upr)
+                    , key     = sprintf("dbh_%3.3g",dbh_lwr)
+                    , desc    = c( paste0("paste(paste(",dbh_lwr[-ndbhs],"<=D*B*H)<",dbh_upr[-ndbhs],"*c*m)")
+                                 , paste0("paste( D*B*H >=",dbh_lwr[ndbhs],"*c*m)")
+                                 )#end c
+                    , labs    = c( paste0("paste(",dbh_lwr[-ndbhs],"-",dbh_upr[-ndbhs],")")
+                                 , paste0("paste(",dbh_lwr[ ndbhs],"-infinity)")
+                                 )#end dbhlabs
+                    , colour   = viridisLite::magma(ndbhs,direction=1)
+                    )#end tibble
+}else{
+   dbhinfo  = tibble( id      = integer(0L)
+                    , dbh_lwr = numeric(0L)
+                    , dbh_upr = numeric(0L)
+                    , key     = character(0L)
+                    , desc    = character(0L)
+                    , labs    = character(0L)
+                    , colour  = character(0L)
+                    )#end tibble
+}#end if (is.finite(idxdbh))
+
+
+
+```
+
+# Figures and tables for FRAP technical report
+
+```{r functions}
+
+## Summarizes BA, stem density, and AGB by case and PFT over a given range of years
+get_summary_tbl <- function(out_by_pft,
+                            summary_start_yr,
+                            summary_end_yr){
+  
+  # Subset years of interest
+  temp <- out_by_pft %>% 
+    mutate(year = year(time)) %>%
+    filter(year >= summary_start_yr & year <= summary_end_yr)
+  
+  # Mean (by site and PFT) of each variable over years of interest
+  summary_tbl <- temp %>%
+    group_by(case, pft) %>%
+    summarise(
+      fates_vegc_aboveground = mean(fates_vegc_aboveground),
+      fates_basalarea = mean(fates_basalarea),
+      fates_nplant = mean(fates_nplant))
+  
+  return(summary_tbl)
+}
+
+plot_barchart <- function(dat, 
+              vname,
+              fatesvar_ref = fatesvar,
+              pftinfo_ref = pftinfo,
+              untab_ref = untab, 
+              site_names = st_names,
+              ref_mean = NULL,
+              ref_min = NULL,
+              ref_max = NULL){
+  
+  # Metadata lookup for Labels
+  f <- which(fatesvar_ref$vnam == vname)
+  f_desc <- fatesvar_ref$desc[f]
+  f_unit <- fatesvar_ref$unit[f]
+  
+  # Aesthetic Mapping for PFTs
+  dat$cat_var <- factor(dat$pft, levels = 1:nrow(pftinfo_ref), labels = pftinfo_ref$short)
+  plot_colors <- pftinfo_ref$colour
+  legend_title <- "PFT"
+  
+  # Add site names
+  site_vec <- unlist(site_names)
+  dat$site_label <- site_vec[dat$case]
+  
+  # Preserve x-axis ordering as defined in site_names
+  if (!is.null(names(site_vec))) {
+    dat$site_label <- factor(dat$site_label, levels = unique(site_vec))
+  }
+  
+  out <- ggplot(dat, aes(x = site_label, y = .data[[vname]], fill = cat_var)) + 
+    geom_col(position = 'stack') +
+    scale_fill_manual(name = legend_title, values = plot_colors) +
+    scale_x_discrete(labels = unlist(site_names)) +
+    labs(
+      y = desc.unit(desc = f_desc, unit = untab_ref[[f_unit]], twolines = FALSE),
+      x = ''
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid =  element_blank(),
+      axis.line = element_line(colour = "gray", linewidth = 0.5),
+      # Angle the x-axis text if your case names are long
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      # Move legend to the bottom for better plot spacing
+      legend.position = "bottom"
+  )
+  
+  # Add horizontal reference lines if provided
+  if (!is.null(ref_min)) {
+    out <- out + geom_hline(yintercept = ref_min, linetype = "dotted", color = "black", linewidth = 0.4)
+  }
+  if (!is.null(ref_max)) {
+    out <- out + geom_hline(yintercept = ref_max, linetype = "dotted", color = "black", linewidth = 0.4)
+  }
+  if (!is.null(ref_mean)) {
+    out <- out + geom_hline(yintercept = ref_mean, linetype = "dashed", color = "black", linewidth = 0.5)
+  }
+  
+  return(out)    
+      
+}
+
+plot_grouped_barchart <- function(dat, 
+              vname,
+              fatesvar_ref = fatesvar,
+              pftinfo_ref = pftinfo,
+              untab_ref = untab, 
+              site_names = st_names,
+              period_var = 'Period'){
+  
+  # Metadata lookup for Labels
+  f <- which(fatesvar_ref$vnam == vname)
+  f_desc <- fatesvar_ref$desc[f]
+  f_unit <- fatesvar_ref$unit[f]
+  
+  # Add site names
+  site_vec <- unlist(site_names)
+  dat$site_label <- site_vec[dat$case]
+  
+  # Preserve x-axis ordering as defined in site_names
+  if (!is.null(names(site_vec))) {
+    dat$site_label <- factor(dat$site_label, levels = unique(site_vec))
+  }
+  
+  # Ensure period variable is treated as a factor
+  dat[[period_var]] <- factor(dat[[period_var]], levels = c('Pre-industrial', 'Fire exclusion'))
+  
+  out <- ggplot(dat, aes(x = site_label, y = .data[[vname]], 
+                         pattern = .data[[period_var]])) + 
+    geom_col_pattern(
+      position = position_dodge(preserve = "single"),
+      fill = 'lightgrey',
+      color = "black",
+      pattern_color = "black",
+      pattern_fill = "white",
+      pattern_density = 0.1,
+      pattern_spacing = 0.04
+    ) +
+    scale_pattern_manual(
+      values = c("none", "stripe"), # Default patterns for the 2 periods
+      name = "Time Period"
+    ) + 
+    scale_x_discrete(labels = unlist(site_names)) +
+    labs(
+      y = desc.unit(desc = f_desc, unit = untab_ref[[f_unit]], twolines = FALSE),
+      x = ''
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid =  element_blank(),
+      axis.line = element_line(colour = "gray", linewidth = 0.5),
+      # Angle the x-axis text if your case names are long
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      # Move legend to the bottom for better plot spacing
+      legend.position = "bottom"
+  )
+  
+  return(out)    
+      
+}
+
+get_simple_sizes <- function(out_by_dbh,
+                             summary_start_yr, 
+                             summary_end_yr,
+                             vname = 'fates_nplant',
+                             start_idx = which(dbhs == 10),
+                             small_idx = which(dbhs == 30),
+                             lg_idx = which(dbhs == 60)
+                             ){
+  
+  by_size <- out_by_dbh %>%
+    mutate(year = year(time)) %>%
+    filter(dbh >= start_idx,
+           year >= summary_start_yr & year <= summary_end_yr,) %>%
+        group_by(time, case, dbh) %>%
+        summarise(!!vname := sum(.data[[vname]]), .groups = "drop")
+  
+  simple_sizes <- by_size %>%
+    mutate(size = case_when(
+      dbh < small_idx ~ '10-30 cm',
+      dbh >= lg_idx ~ '60+ cm',
+      TRUE ~ '30-60 cm'
+    )) %>% 
+    group_by(time, case, size) %>%
+    summarise(!!vname := sum(.data[[vname]]), .groups = "drop") %>%
+    mutate(size = factor(size))
+  
+  out <- simple_sizes %>%
+    group_by(case, size) %>%
+    summarise(nplant = mean(fates_nplant))
+  
+  return(out)
+}
+
+get_cumulative_mortality <- function(df, start_date, end_date, 
+                                     date_col = "time", 
+                                     pft_col = "pft",
+                                     case_col = 'case',
+                                     mort_col = "fates_mortality_hydraulic") {
+  
+  # Ensure the start and end dates are Date objects
+  df[[date_col]] <- as.Date(df[[date_col]])
+  start_date <- as.Date(start_date)
+  end_date <- as.Date(end_date)
+  
+  # Check if dataframe has data in this range to avoid confusing errors later
+  if (!any(df[[date_col]] >= start_date & df[[date_col]] <= end_date)) {
+    stop("No data found for the specified date range.")
+  }
+  
+  result <- df %>%
+    # 1. Filter the dataframe to the requested time period
+    filter(.data[[date_col]] >= start_date & .data[[date_col]] <= end_date) %>%
+    
+    # 2. Group by Plant Functional Type
+    group_by(.data[[pft_col]], .data[[case_col]]) %>%
+    
+    # 3. Apply the exponential decay calculation
+    summarize(
+      # Calculate the sum of (rate * dt). Assuming dt = 1/12 of a year
+      sum_rate_dt = sum((.data[[mort_col]] / 100.0) * (1 / 12), na.rm = TRUE),
+      
+      # Calculate cumulative mortality: (1 - survival) * 100
+      cumulative_mortality_pct = (1 - exp(-sum_rate_dt)) * 100,
+      
+      .groups = "drop"
+    ) %>%
+    
+    # Keep only the relevant columns in the final output
+    select(.data[[pft_col]], .data[[case_col]], cumulative_mortality_pct)
+  
+  return(result)
+}
+
+
+```
+
+
+```{r basic_climate_comparison}
+
+### Summarize mean annual temperature and precipitation for each benchmarking site
+### based on 20th century climate drivers
+
+## Simplify dataframe 
+wrf_clim =   hlm1d                          %>% 
+             select(case,time,tsa,rain,snow)%>% 
+             mutate(Name = st_names[case],
+                    year = year(time),
+                    month= month(time),
+                    rain = (rain + snow))   %>% 
+             select(-snow)   
+
+## Annual timeseries
+wrfclim_annual = wrf_clim                 %>% 
+                group_by(case,Name,year) %>% 
+                summarise(tsa = mean(tsa),
+                       rain= sum(rain))   
+
+## Mean annual temperature and precipitation
+mat_map <- wrfclim_annual %>%
+  group_by(case, Name) %>%
+  summarise(tsa = mean(tsa),
+         rain = mean(rain))
+
+mat_map
+
+```
+
+
+```{r final_struct_comp}
+
+### Preindustrial end-of-simulation summary
+preind_summary <- get_summary_tbl(bypft_pre, 
+                                  summary_start_yr = 1491,
+                                  summary_end_yr = 1520)
+
+
+agb <- plot_barchart(dat = preind_summary,
+              vname = 'fates_vegc_aboveground', 
+              ref_min = benchmarks[benchmarks$Metric == 'vegc_aboveground' & 
+                                    grepl('Yosemite', benchmarks$Locale), 'lb'],
+              ref_max = benchmarks[benchmarks$Metric == 'vegc_aboveground' & 
+                                    grepl('Yosemite', benchmarks$Locale), 'ub'],
+              ref_mean = benchmarks[benchmarks$Metric == 'vegc_aboveground' & 
+                                    grepl('Yosemite', benchmarks$Locale), 'central_tendency'])
+
+ba <- plot_barchart(dat = preind_summary,
+              vname = 'fates_basalarea', 
+              ref_min = benchmarks[benchmarks$Metric == 'basalarea' & 
+                                     benchmarks$PFT == 'All' &
+                                    grepl('reconstruction', benchmarks$Source), 'lb'],
+              ref_max = benchmarks[benchmarks$Metric == 'basalarea' & 
+                                     benchmarks$PFT == 'All' &
+                                    grepl('reconstruction', benchmarks$Source), 'ub'],
+              ref_mean = benchmarks[benchmarks$Metric == 'basalarea' & 
+                                     benchmarks$PFT == 'All' &
+                                    grepl('reconstruction', benchmarks$Source), 'central_tendency'])
+
+stems <- plot_barchart(dat = preind_summary,
+              vname = 'fates_nplant', 
+              ref_min = benchmarks[benchmarks$Metric == 'nplant' & 
+                                     benchmarks$PFT == 'All' &
+                                    grepl('reconstruction', benchmarks$Source), 'lb'],
+              ref_max = benchmarks[benchmarks$Metric == 'nplant' & 
+                                     benchmarks$PFT == 'All' &
+                                    grepl('reconstruction', benchmarks$Source), 'ub'],
+              ref_mean = benchmarks[benchmarks$Metric == 'nplant' & 
+                                     benchmarks$PFT == 'All' &
+                                    grepl('reconstruction', benchmarks$Source), 'central_tendency'])
+
+
+preindust <- ggarrange(agb, ba, stems, ncol = 3, common.legend = TRUE, legend = 'bottom',
+          labels = c('A', 'B', 'C'))
+
+print(preindust)
+
+ggsave(here::here('Outputs/Fig_preindust_summary.png'), preindust, device = 'png',
+       width = 6.5, height = 4, units = 'in')
+
+
+
+```
+
+```{r compare_fire_fireoff}
+
+# Fire exclusion end of simulation summary
+nofire_summary <- get_summary_tbl(bypft_nofire, 
+                                  summary_start_yr = 1971,
+                                  summary_end_yr = 2000) 
+
+## Join pre-industrial and fire exclusion summary data
+joined_summary <- rbind(preind_summary %>% mutate(Period = 'Pre-industrial'), 
+                        nofire_summary %>% mutate(Period = 'Fire exclusion'))
+
+joined_summary <- joined_summary %>%
+  group_by(case, Period) %>%
+  summarise(fates_vegc_aboveground = sum(fates_vegc_aboveground),
+            fates_basalarea = sum(fates_basalarea),
+            fates_nplant = sum(fates_nplant))
+
+stem_prepost <- plot_grouped_barchart(joined_summary, 'fates_nplant')
+ba_prepost <- plot_grouped_barchart(joined_summary, 'fates_basalarea')
+agb_prepost <- plot_grouped_barchart(joined_summary, 'fates_vegc_aboveground')
+
+prepost <- ggarrange(agb_prepost, ba_prepost, stem_prepost, ncol = 3, 
+                     common.legend = TRUE, legend = 'bottom',
+          labels = c('A', 'B', 'C'))
+
+## Percent change in stem density
+(joined_summary[joined_summary$Period == 'Fire exclusion', 'fates_nplant'] - joined_summary[joined_summary$Period == 'Pre-industrial', 'fates_nplant'])/joined_summary[joined_summary$Period == 'Pre-industrial', 'fates_nplant']
+
+prepost
+
+ggsave(here::here('Outputs/Fig_prepost_summary.png'), prepost, device = 'png',
+       width = 6.5, height = 4, units = 'in')
+
+```
+
+```{r size_distribution}
+
+## Remove sizes below threshold
+summary_start_yr <- 1491
+summary_end_yr <- 1520
+start_idx <- which(dbhs == 10)
+
+
+## Filter years and size classes of interest
+sz_nplant <- bydbh_pre %>% 
+  select(case, time, dbh, fates_nplant)  %>%
+  mutate(year = year(time),
+         dbh=ifelse(dbh==3,4,dbh)) %>% # combine 10-15 and 15-20cm size bins
+  filter(year >= summary_start_yr & year <= summary_end_yr,
+         dbh >= start_idx) %>%
+  group_by(case, time, dbh) %>%
+  summarize(fates_nplant = sum(fates_nplant))
+
+sz_nplant <- sz_nplant %>% 
+  group_by(case, dbh) %>%
+  summarise(nplant = mean(fates_nplant))
+
+
+frac_nplant <- sz_nplant %>% 
+  group_by(case) %>% 
+  mutate(total_trees = sum(nplant),
+         frac_trees = nplant / total_trees) %>%
+  rename(Site = case) %>% 
+  mutate(Site = unname(st_names[Site]))
+  
+
+# make DBH labels
+dbh_labs = c(dbhinfo$labs[5:13], "paste(10-20)")
+dbh_labs = parse(text=dbh_labs)
+names(dbh_labs) = c(dbhinfo$id[5:13],"4")
+
+
+## Get reference values for Yosemite (Scholl & Taylor)
+yose_size <- ref_size %>%
+  filter(Site == 'Yosemite') %>%
+  left_join(dbhinfo, by = c("Size bin low" = "dbh_lwr")) %>% 
+  mutate(id = case_when(
+    `Size bin low` == 10 ~4,
+    `Size bin low` >= 100 ~max(dbhinfo$id), 
+    TRUE ~id
+  )) %>%
+  group_by(Site, id) %>% 
+  summarise(nplant = sum(Estimate)) %>%
+  rename(dbh = id)
+
+yose_frac <-  yose_size %>% 
+  mutate(total_trees = sum(nplant),
+         frac_trees = nplant / total_trees) 
+
+joined_sz <- rbind(frac_nplant, yose_frac)
+
+joined_sz$dbh = factor(joined_sz$dbh,levels=unique(joined_sz$dbh))
+joined_sz$Site = factor(joined_sz$Site, levels = c('Site 1', 'Site 2', 'Yosemite', 'Site 3', 'Site 4'))
+
+
+sz_dist_pre = ggplot(joined_sz, aes(dbh, frac_trees)) + #ggplot(sz_nplant, aes(dbh, fates_nplant)) + 
+  facet_wrap(.~Site) + 
+  # scale_x_discrete(labels=st_names) + 
+  scale_x_discrete(labels=dbh_labs) +
+  geom_bar(stat = "identity") + 
+  xlab("Size class (cm)") + 
+  ylab('Fraction of total stem density') + #expression("( Plant"~ha^-2~")"))) + 
+  theme_minimal() + 
+  theme( legend.position   = "bottom",
+         panel.grid =  element_blank(),
+      axis.line = element_line(colour = "gray", linewidth = 0.5),
+      # Angle the x-axis text if your case names are long
+      axis.text.x = element_text(angle = 45, hjust = 1),
+                         )#
+
+sz_dist_pre
+
+ggsave(here::here('Outputs/Fig_size_dist_pre.png'), sz_dist_pre, device = 'png',
+       width = 6.5, height = 5, units = 'in')
+
+```
+
+
+```{r pft_frac_over_time}
+
+pft_frac_time <- bypft_nofire %>% 
+  select(case, time, pft, fates_basalarea) %>%
+  group_by(case, time) %>% 
+  mutate(total_ba = sum(fates_basalarea),
+         frac_ba = fates_basalarea / total_ba,
+         year = year(time))
+
+
+# Metadata lookup for Labels
+f_ba <- which(fatesvar$vnam == 'fates_basalarea')
+f_desc_ba <- fatesvar$desc[f_ba]
+f_unit_ba <- fatesvar$unit[f_ba]
+  
+# Aesthetic Mapping for PFTs
+pft_frac_time$cat_var <- factor(pft_frac_time$pft, levels = 1:nrow(pftinfo), labels = pftinfo$short)
+plot_colors <- pftinfo$colour
+legend_title <- "PFT"
+  
+
+pft_time <- ggplot(pft_frac_time, aes(x = year, y = frac_ba, color = cat_var)) + 
+  geom_line(linewidth = 0.7) +
+  scale_color_manual(name = legend_title, values = plot_colors) +
+  facet_wrap(.~case, labeller = labeller(case = st_names)) + 
+  labs(
+    y = 'Fraction of total basal area', #desc.unit(desc = f_desc_ba, unit = untab[[f_unit_ba]], twolines = FALSE),
+    x = 'Year'
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid =  element_blank(),
+    axis.line = element_line(colour = "gray", linewidth = 0.5),
+    # Angle the x-axis text if your case names are long
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    # Move legend to the bottom for better plot spacing
+    legend.position = "bottom"
+)
+
+print(pft_time)
+
+ggsave(here::here('Outputs/Fig_pft_frac_time.png'), pft_time, device = 'png',
+       width = 6.5, height = 5, units = 'in')
+
+```
+
+```{r size_dist_change}
+
+preind_size <- get_simple_sizes(bydbh_pre,
+                                summary_start_yr = 1491,
+                                summary_end_yr = 1520)
+
+preind_size <- preind_size %>%
+  rename(nplant_pre = nplant)
+
+## Same thing for fire exclusion
+noFire_size <- get_simple_sizes(bydbh_noFire,
+                                summary_start_yr = 1971,
+                                summary_end_yr = 2000)
+
+noFire_size <- noFire_size %>%
+  rename(nplant_noFire = nplant)
+
+joined_simple_sz <- inner_join(preind_size, noFire_size, by = c('case', 'size'))
+
+joined_simple_sz$pct_chng <- 100 * (joined_simple_sz$nplant_noFire - joined_simple_sz$nplant_pre) / joined_simple_sz$nplant_pre
+
+# Add site names
+site_vec <- unlist(st_names)
+joined_simple_sz$site_label <- site_vec[joined_simple_sz$case]
+
+joined_simple_sz$site_label <- factor(joined_simple_sz$site_label, levels = unique(site_vec))
+
+## Grouped col chart
+out <- ggplot(joined_simple_sz, aes(x = size, y = pct_chng, 
+                         pattern = site_label)) + 
+    geom_col_pattern(
+      position = position_dodge(preserve = "single"),
+      fill = 'lightgrey',
+      color = "black",
+      pattern_color = "black",
+      pattern_fill = "white",
+      pattern_density = 0.05,
+      pattern_spacing = 0.04
+    ) +
+    scale_pattern_manual(
+      values = c('crosshatch', 'circle', 'none', 'stripe'), 
+      name = "Site"
+    ) + 
+    # scale_x_discrete(labels = unlist(site_names)) +
+    labs(
+      y = 'Percent change in stem density',
+      x = 'Diameter at breast height'
+    ) +
+    theme_minimal() +
+    theme(
+      panel.grid =  element_blank(),
+      axis.line = element_line(colour = "gray", linewidth = 0.5),
+      # Angle the x-axis text if your case names are long
+      # axis.text.x = element_text(angle = 45, hjust = 1),
+      # Move legend to the bottom for better plot spacing
+      legend.position = "bottom"
+  )
+
+print(out)
+ 
+ggsave(here::here('Outputs/Fig_change_size_dist.png'), out, device = 'png',
+       width = 6.5, height = 3, units = 'in')
+
+```
+
+
+```{r get_cum_mort}
+
+mort_preDrought <- get_cumulative_mortality(df = bypft_drought, start_date = '2003-01-01', 
+                         end_date = '2008-12-01')
+mort_preDrought$Period <- '2007-2011'
+
+mort_drought <- get_cumulative_mortality(df = bypft_drought, start_date = '2009-01-01', 
+                         end_date = '2016-12-01')
+mort_drought$Period <- '2012-2016'
+
+
+all_hydro_mort <- rbind(mort_preDrought, mort_drought)
+all_hydro_mort <- all_hydro_mort %>% 
+  mutate(
+    pft = factor(pft,
+                 levels = 1:npfts,
+                 labels = pftinfo$short), 
+    case = factor(case,
+                  levels = 1:length(st_names),
+                  labels = st_names),
+    Period = factor(Period)
+  )
+
+cumu_drought <- ggplot(all_hydro_mort, aes(x = case, y = cumulative_mortality_pct, fill = Period)) +
+  # Place columns side-by-side
+  geom_col(position = "dodge", color = "black", linewidth = 0.2) +
+  scale_fill_manual(values = c('lightblue','maroon' )) +
+  
+  # Create a separate panel for each PFT
+  facet_wrap(~ pft, scales = "free_y") + 
+  
+  # Add clear labels
+  labs(
+    # title = "Cumulative Hydraulic Mortality by PFT and Case",
+    x = "",
+    y = "Cumulative Mortality (%)",
+    fill = "Timeframe"
+  ) +
+  
+  # Use a clean theme
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    # Angle the x-axis text if your case names are long
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    # Move legend to the bottom for better plot spacing
+    legend.position = "bottom"
+  )
+
+## Mortality change statistics
+mort_wide <- pivot_wider(
+  all_hydro_mort, 
+  names_from = Period,   # The column whose values become new column headers
+  values_from = cumulative_mortality_pct   # The column containing the cell values
+) %>%
+  mutate(delta = `2012-2016` - `2007-2011`)
+
+print(cumu_drought)
+
+ggsave(here::here('Outputs/Fig_cumu_drought.png'), cumu_drought, device = 'png',
+       width = 6.5, height = 4, units = 'in')
+
+```

@@ -1,0 +1,76 @@
+﻿Regime,Metric,UoM,PFT,Locale,Source,minDBH_cm,lb,ub,central_tendency
+Pre-industrial,basalarea,m2oha,All,SNMC,Safford and Stevens 2017,15.2 for lb; 10 for ub,21,54,35
+Pre-industrial,basalarea,m2oha,All,Lassen-Plumas,Bernal et al. 2022,30.5,13.2,18.9,16.1
+Pre-industrial,basalarea,m2oha,All,El Dorado National Forest,Bernal et al. 2022,30.5,29.1,51.3,39.5
+Pre-industrial,basalarea,m2oha,All,Stanislaus-Tuolumne Experimental Forest,Knapp et al. 2013,9.1,51.4,55.7,53.9
+Pre-industrial,basalarea,m2oha,All,Stanislaus National Forest,Bernal et al. 2022,30.5,10.2,20.2,14.5
+Pre-industrial,basalarea,m2oha,All,Stanislaus National Forest,Collins et al. 2015,15.2,2,39,16.1
+Pre-industrial,basalarea,m2oha,All,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,0.3,88.9,29.9
+Pre-industrial,basalarea,m2oha,All,Yosemite National Park,Scholl and Taylor 2010  (1911 inventory),15.2,0.7,34.4,20.6
+Pre-industrial,basalarea,m2oha,All,Teakettle Experimental Forest,North et al. 2007,5,,,51.5
+Pre-industrial,basalarea,m2oha,All,Sequoia National Forest,Bernal et al. 2022,30.5,12.6,30,20.2
+Pre-industrial,basalarea,m2oha,All,Greenhorn Mountains,Stephens et al. 2015,30.5,19.6,39.4,29.5
+Pre-industrial,vegc_aboveground,kgcom2,All,SNMC,Bernal et al. 2022,30.5,1.99,5.91,
+Pre-industrial,vegc_aboveground,kgcom2,All,Yosemite National Park,Harris et al. 2019,10,1.28,18.18,9.73
+Pre-industrial,vegc_aboveground,kgcom2,All,Stanislaus National Forest,Bernal et al. 2022,30.5,1.29,2.84,1.99
+Pre-industrial,vegc_aboveground,kgcom2,All,Sequoia National Forest,Bernal et al. 2022,30.5,1.68,4.32,2.71
+Pre-industrial,vegc_aboveground,kgcom2,All,Lassen-Plumas,Bernal et al. 2022,30.5,2.1,3.05,2.55
+Pre-industrial,vegc_aboveground,kgcom2,All,El Dorado National Forest,Bernal et al. 2022,30.5,4.15,7.88,5.91
+Pre-industrial,nplant,ploha,All,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,40,650,159.5
+Pre-industrial,nplant,ploha,All,Yosemite National Park,Scholl and Taylor 2010  (1911 inventory),15.2,8.3,216.3,99.4
+Pre-industrial,nplant,ploha,All,Teakettle Experimental Forest,North et al. 2007,5,,,67
+Pre-industrial,nplant,ploha,All,Stanislaus-Tuolumne Experimental Forest,Knapp et al. 2013,10,268.8,389.9,314.5
+Pre-industrial,nplant,ploha,All,Stanislaus National Forest,Bernal et al. 2022,30.5,24,46,34
+Pre-industrial,nplant,ploha,All,Stanislaus National Forest,Collins et al. 2015,15.2,3,121,48.1
+Pre-industrial,nplant,ploha,All,Sequoia National Forest,Bernal et al. 2022,30.5,28,76,49
+Pre-industrial,nplant,ploha,All,Lassen-Plumas,Bernal et al. 2022,30.5,36,52,44
+Pre-industrial,nplant,ploha,All,Greenhorn Mountains,Stephens et al. 2015,30.5,48.1,101.9,75
+Pre-industrial,nplant,ploha,All,El Dorado National Forest,Bernal et al. 2022,30.5,55,102,75
+Pre-industrial,nplant,ploha,All,SNMC,Safford and Stevens 2017,15.2 for lb; 10 for ub,60,328,159
+Pre-industrial,basalarea,m2oha,Fir,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,0,19,1.8
+Pre-industrial,basalarea,m2oha,Cedar,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,0,57.2,9
+Pre-industrial,basalarea,m2oha,Sugar pine,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,0,52,6.8
+Pre-industrial,basalarea,m2oha,Yellow pine,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,0,55.4,10.4
+Pre-industrial,basalarea,m2oha,Oak,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,0,11.5,0.7
+Pre-industrial,basalarea,m2oha,Other,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,0,46.1,1.2
+Pre-industrial,basalarea_frac,frac,Fir,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,,,0.060200669
+Pre-industrial,basalarea_frac,frac,Cedar,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,,,0.301003344
+Pre-industrial,basalarea_frac,frac,Pine,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,,,0.575250836
+Pre-industrial,basalarea_frac,frac,Oak,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,,,0.023411371
+Pre-industrial,basalarea_frac,frac,Other,Yosemite National Park,Scholl and Taylor 2010 (1899 reconstruction),10,,,0.040133779
+Pre-industrial,nplant_frac,frac,Fir,Teakettle Experimental Forest,North et al. 2007,5,,,0.366
+Pre-industrial,nplant_frac,frac,Cedar,Teakettle Experimental Forest,North et al. 2007,5,,,0.145
+Pre-industrial,nplant_frac,frac,Pine,Teakettle Experimental Forest,North et al. 2007,5,,,0.489
+Pre-industrial,basalarea,m2oha,Fir,Stanislaus-Tuolumne Experimental Forest,Knapp et al. 2013,10,17.5,25.5,22.2
+Pre-industrial,basalarea,m2oha,Cedar,Stanislaus-Tuolumne Experimental Forest,Knapp et al. 2013,10,9.6,14.6,11.8
+Pre-industrial,basalarea,m2oha,Sugar pine,Stanislaus-Tuolumne Experimental Forest,Knapp et al. 2013,10,12.3,15,13.6
+Pre-industrial,basalarea,m2oha,Yellow pine,Stanislaus-Tuolumne Experimental Forest,Knapp et al. 2013,10,4.3,9.1,6.3
+Pre-industrial,basalarea_frac,frac,Pine,Stanislaus-Tuolumne Experimental Forest,Knapp et al. 2013,10,0.322,0.415,0.37
+Pre-industrial,basalarea_frac,frac,Fir,Stanislaus-Tuolumne Experimental Forest,Knapp et al. 2013,10,,,0.41
+Pre-industrial,basalarea_frac,frac,Cedar,Stanislaus-Tuolumne Experimental Forest,Knapp et al. 2013,10,,,0.22
+Pre-industrial,basalarea,m2oha,Fir,Stanislaus National Forest,Collins et al. 2015,15.2,0,28.2,1
+Pre-industrial,basalarea,m2oha,Cedar,Stanislaus National Forest,Collins et al. 2015,15.2,0,9.1,4.9
+Pre-industrial,basalarea,m2oha,Yellow pine,Stanislaus National Forest,Collins et al. 2015,15.2,0.7,13.8,7.7
+Pre-industrial,basalarea,m2oha,Sugar pine,Stanislaus National Forest,Collins et al. 2015,15.2,0.5,4.7,1.6
+Pre-industrial,basalarea,m2oha,Other,Stanislaus National Forest,Collins et al. 2015,15.2,0,9.4,1
+Pre-industrial,basalarea_frac,frac,Fir,Stanislaus National Forest,Collins et al. 2015,15.2,,,0.061728395
+Pre-industrial,basalarea_frac,frac,Cedar,Stanislaus National Forest,Collins et al. 2015,15.2,,,0.302469136
+Pre-industrial,basalarea_frac,frac,Pine,Stanislaus National Forest,Collins et al. 2015,15.2,,,0.574074074
+Pre-industrial,basalarea_frac,frac,Other,Stanislaus National Forest,Collins et al. 2015,15.2,,,0.061728395
+Pre-industrial,basalarea_frac,frac,Pine,Stanislaus National Forest,Bernal et al. 2022,30.5,0.46,0.72,0.6
+Pre-industrial,basalarea_frac,frac,Pine,Sequoia National Forest,Bernal et al. 2022,30.5,0.2,0.69,0.43
+Pre-industrial,basalarea_frac,frac,Pine,Lassen-Plumas,Bernal et al. 2022,30.5,0.52,0.75,0.63
+Pre-industrial,basalarea_frac,frac,Pine,El Dorado National Forest,Bernal et al. 2022,30.5,0.2,0.49,0.34
+Pre-industrial,basalarea,m2oha,Fir,Greenhorn Mountains,Stephens et al. 2015,30.5,1.4,19,10.2
+Pre-industrial,basalarea,m2oha,Cedar,Greenhorn Mountains,Stephens et al. 2015,30.5,4.5,16.9,10.7
+Pre-industrial,basalarea,m2oha,Yellow pine,Greenhorn Mountains,Stephens et al. 2015,30.5,0.6,10,5.3
+Pre-industrial,basalarea,m2oha,Sugar pine,Greenhorn Mountains,Stephens et al. 2015,30.5,0,6.5,3.2
+Pre-industrial,basalarea_frac,frac,Fir,Greenhorn Mountains,Stephens et al. 2015,30.5,,,0.346938776
+Pre-industrial,basalarea_frac,frac,Cedar,Greenhorn Mountains,Stephens et al. 2015,30.5,,,0.363945578
+Pre-industrial,basalarea_frac,frac,Pine,Greenhorn Mountains,Stephens et al. 2015,30.5,,,0.289115646
+Megadrought,mortality,pctStems,Fir,SNMC,Restaino et al. 2019,7.6,0,37,24
+Megadrought,mortality,pctStems,Cedar,SNMC,Restaino et al. 2020,7.6,0,33,21
+Megadrought,mortality,pctStems,Pine,SNMC,Restaino et al. 2021,7.6,0,91,40
+Megadrought,mortality,pctStems(2012-2016),Oak,SNMC,Restaino et al. 2022,7.6,0,0,1
+Megadrought,mortality,pctStems(2014-2017),All,El Dorado National Forest,Fettig et al. 2019,6.35,42.8,49.4,46.1
+Megadrought,mortality,pctStems(2014-2017),All,Sierra National Forest,Fettig et al. 2019,6.35,55,62.4,58.7
