@@ -1,1 +1,3 @@
-# snmc_plausible_futures
+# Characterizing uncertainty, plausible futures, and adaptation signposts for widespread forest health treatment in Sierra Nevada mixed-conifer forests
+
+This repository provides code for 1) benchmarking the Functionally Assembled Terrestrial Ecosystem Simulator (FATES) to reconstruct historical and contemporary vegetation responses to climate, fire, and management dynamics; and 2) preparing inputs to a full-factorial simulation experiment exploring how management strategy, future climate, and initial forest conditions shape forest responses to drought. We anticipate that these contributions will enable future efforts to address a variety of research questions, including how sensitive drought-driven tree mortality and carbon storage are to different combinations of forest treatment strategy, initial stand conditions, and future climate.
