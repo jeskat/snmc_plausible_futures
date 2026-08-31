@@ -24,7 +24,7 @@ case_files  = file.path(main_path,ens_cases)
 
 # Site names
 st_names = c('Site 1', 'Site 2', 'Site 3', 'Site 4') 
-names(st_names) = c("1","2","3")
+names(st_names) = c("1","2","3", "4")
 
 
 
@@ -35,7 +35,6 @@ names(st_names) = c("1","2","3")
 util_path   = file.path('/global/home/users/jessicakatz/Repos/RUtils') 
 
 source(file.path(util_path,"load.everything.r"),chdir=TRUE)
-
 ```
 
 ```{r load_data}
@@ -356,10 +355,14 @@ get_simple_sizes <- function(out_by_dbh,
   return(out)
 }
 
+cue_fun = function(x,n){
+   cue_mon = ifelse( test = n == 0, yes = 0., no = x/n)
+   return(cue_mon)
+}
+
 get_cumulative_mortality <- function(df, start_date, end_date, 
                                      date_col = "time", 
-                                     pft_col = "pft",
-                                     case_col = 'case',
+                                     group_cols = c("pft", "case"),
                                      mort_col = "fates_mortality_hydraulic") {
   
   # Ensure the start and end dates are Date objects
@@ -377,7 +380,7 @@ get_cumulative_mortality <- function(df, start_date, end_date,
     filter(.data[[date_col]] >= start_date & .data[[date_col]] <= end_date) %>%
     
     # 2. Group by Plant Functional Type
-    group_by(.data[[pft_col]], .data[[case_col]]) %>%
+    group_by(across(all_of(group_cols))) %>%
     
     # 3. Apply the exponential decay calculation
     summarize(
@@ -391,7 +394,7 @@ get_cumulative_mortality <- function(df, start_date, end_date,
     ) %>%
     
     # Keep only the relevant columns in the final output
-    select(.data[[pft_col]], .data[[case_col]], cumulative_mortality_pct)
+    select(all_of(group_cols), cumulative_mortality_pct)
   
   return(result)
 }
@@ -482,7 +485,18 @@ ggsave(here::here('Outputs/Fig_preindust_summary.png'), preindust, device = 'png
        width = 6.5, height = 4, units = 'in')
 
 
+## PFT proportion of total
+frac_ba <- preind_summary %>%
+  group_by(case) %>%
+  mutate(total_ba = sum(fates_basalarea),
+         frac_ba = fates_basalarea / total_ba) %>%
+  select(case, pft, frac_ba) %>%
+  pivot_wider(
+    names_from = case,   # The column containing new column headers
+    values_from = frac_ba   # The column containing the cell values
+  )
 
+frac_ba
 ```
 
 ```{r compare_fire_fireoff}
@@ -714,15 +728,92 @@ ggsave(here::here('Outputs/Fig_change_size_dist.png'), out, device = 'png',
 
 ```
 
+```{r water_use_efficiency}
+
+wue_mod = hlm1d %>% 
+  select(case,time,fates_gpp,eflx_lh_tot) %>% 
+  mutate(wue = cue_fun(x=.data$fates_gpp,n=.data$eflx_lh_tot))     %>% 
+  mutate(year = year(time))                                        %>% 
+  group_by(case,year)                                              %>% 
+  summarize(wue = mean(wue,na.rm=TRUE))                            %>% 
+  ungroup()                                                        %>% 
+  mutate(year = as.POSIXct(ymd(year, truncated = 2L)))
+
+wue_plot <- ggplot(wue_mod, aes(year,wue)) +
+  geom_point() +
+  geom_smooth(method = 'lm', formula = y~x) +
+  facet_wrap(.~case, labeller = labeller(case = st_names)) +
+  labs(y="Water use efficiency (GPP/LH)",
+       x= "Year")+
+  theme_minimal() +
+  theme(
+    panel.grid =  element_blank(),
+    axis.line = element_line(colour = "gray", linewidth = 0.5),
+    # Angle the x-axis text if your case names are long
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    # Move legend to the bottom for better plot spacing
+    legend.position = "bottom"
+)
+
+wue_plot
+
+ggsave(here::here('Outputs/Fig_wue_time.png'), wue_plot, device = 'png',
+       width = 6.5, height = 5, units = 'in')
+
+## Calculate percent change in water use efficiency over a specified period
+library(broom)
+
+calc_pct_chng <- function(x){
+  out_unlist <- unlist(x)
+  return((out_unlist[length(out_unlist)] - out_unlist[1]) / out_unlist[1] * 100)
+}
+
+pct_chng_wue <- function(wue_out, 
+                         yr1,
+                         yr2,
+                         labs = st_names){
+  rslt <- wue_out %>%
+    filter(year(year) <= yr2 & year(year) >= yr1) %>%
+    group_by(case) %>%
+    nest() %>%
+    mutate(
+      model = map(data, ~ lm(wue ~ year, data = .x)),
+      tidy_results = map(model, tidy), 
+      predictions = map(model, predict),
+      pct_chng = map(predictions, calc_pct_chng)
+    )
+  
+  out <- unlist(rslt$pct_chng)
+  names(out) <- labs
+  return(out)
+}
+
+pct_chng_wue(wue_mod, 
+             yr1 = 1901,
+             yr2 = 2000)
+
+
+pct_chng_wue(wue_mod, 
+             yr1 = 1960,
+             yr2 = 2000)
+  
+
+```
+
+
 
 ```{r get_cum_mort}
 
-mort_preDrought <- get_cumulative_mortality(df = bypft_drought, start_date = '2003-01-01', 
-                         end_date = '2008-12-01')
+mort_preDrought <- get_cumulative_mortality(df = bypft_drought, 
+                                            start_date = '2007-01-01', 
+                                            end_date = '2011-12-01',
+                                            group_cols = c('pft', 'case'))
 mort_preDrought$Period <- '2007-2011'
 
-mort_drought <- get_cumulative_mortality(df = bypft_drought, start_date = '2009-01-01', 
-                         end_date = '2016-12-01')
+mort_drought <- get_cumulative_mortality(df = bypft_drought, 
+                                         start_date = '2012-01-01', 
+                                         end_date = '2016-12-01', 
+                                         group_cols = c('pft', 'case'))
 mort_drought$Period <- '2012-2016'
 
 
@@ -777,4 +868,21 @@ print(cumu_drought)
 ggsave(here::here('Outputs/Fig_cumu_drought.png'), cumu_drought, device = 'png',
        width = 6.5, height = 4, units = 'in')
 
+
+## Aggregated mortality across sites and PFTs
+
+## Group by time, summarizing over PFT and case
+bytime_drought <- bypft_drought %>% 
+  mutate(nhydromort = fates_mortality_hydraulic * fates_nplant / 100) %>%
+  group_by(time) %>% 
+  summarize(tot_hydro_mort = sum(nhydromort), 
+            frac_hydro_mort = tot_hydro_mort/sum(fates_nplant) *100)
+
+aggmort_preDrought <- get_cumulative_mortality(bytime_drought, '2007-01-01', '2011-12-01', 
+                                               group_cols = c(), 
+                                               mort_col = 'frac_hydro_mort')
+
+aggmort_drought <- get_cumulative_mortality(bytime_drought, '2012-01-01', '2016-12-01', 
+                                               group_cols = c(), 
+                                               mort_col = 'frac_hydro_mort')
 ```
